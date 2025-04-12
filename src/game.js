@@ -14,10 +14,11 @@ class MainScene extends Phaser.Scene {
         this.nextDirection = 'right';
         this.gridSize = 20;
         this.speedBoostActive = false; // Estado del boost de velocidad
+        this.trailParticles = null; // Sistema de partículas para la estela
     }
 
     preload() {
-        // No necesitamos cargar imágenes, crearemos gráficos directamente
+        // No es necesario precargar nada para las partículas básicas
     }
 
     create() {
@@ -76,6 +77,12 @@ class MainScene extends Phaser.Scene {
             fill: '#ff0' 
         });
         
+        // Gráfico para las partículas
+        this.trailGraphics = this.add.graphics();
+        
+        // Arreglo para almacenar las partículas manuales
+        this.particles = [];
+        
         this.score = 0;
         this.isPaused = false;
     }
@@ -92,12 +99,44 @@ class MainScene extends Phaser.Scene {
             return;
         }
         
+        // Actualizar partículas existentes
+        this.updateParticles();
+        
         // Controlar velocidad con SHIFT o X
         if (this.shiftKey.isDown || this.xKey.isDown) {
             this.speed = Math.floor(this.baseSpeed / 3); // 3 veces más rápido
             this.speedBoostActive = true;
             this.boostText.setText('BOOST: ON');
             this.boostText.setFill('#ff0'); // Amarillo
+            
+            // Crear partículas en la cola si la serpiente se está moviendo
+            if (this.snakeBody.length > 0) {
+                const tailSegment = this.snakeBody[this.snakeBody.length - 1];
+                
+                // Determinar dirección para las partículas
+                let particleAngle = 0;
+                if (this.snakeBody.length > 1) {
+                    const prevSegment = this.snakeBody[this.snakeBody.length - 2];
+                    
+                    // Calcular dirección basada en la diferencia entre segmentos
+                    if (tailSegment.x < prevSegment.x) {
+                        particleAngle = 0; // Emitir hacia la derecha
+                    } else if (tailSegment.x > prevSegment.x) {
+                        particleAngle = 180; // Emitir hacia la izquierda
+                    } else if (tailSegment.y < prevSegment.y) {
+                        particleAngle = 90; // Emitir hacia abajo
+                    } else if (tailSegment.y > prevSegment.y) {
+                        particleAngle = 270; // Emitir hacia arriba
+                    }
+                }
+                
+                // Crear nuevas partículas
+                this.createParticles(
+                    tailSegment.x + this.gridSize / 2,
+                    tailSegment.y + this.gridSize / 2,
+                    particleAngle
+                );
+            }
         } else {
             this.speed = this.baseSpeed;
             this.speedBoostActive = false;
@@ -120,6 +159,76 @@ class MainScene extends Phaser.Scene {
         if (time >= this.moveTime) {
             this.moveSnake();
             this.moveTime = time + this.speed;
+        }
+    }
+    
+    // Método para crear partículas manualmente
+    createParticles(x, y, angle) {
+        // Crear entre 3 y 6 partículas cada vez
+        const count = Phaser.Math.Between(3, 6);
+        
+        for (let i = 0; i < count; i++) {
+            // Calcular ángulo aleatorio dentro del rango
+            const particleAngle = Phaser.Math.DegToRad(
+                angle + Phaser.Math.Between(-30, 30)
+            );
+            
+            // Velocidad aleatoria
+            const speed = Phaser.Math.Between(20, 80);
+            
+            // Componentes de velocidad
+            const vx = Math.cos(particleAngle) * speed;
+            const vy = Math.sin(particleAngle) * speed;
+            
+            // Color aleatorio entre tonos verdosos/azulados
+            const colors = [0x00ff88, 0x00ffaa, 0x00ddff];
+            const color = colors[Phaser.Math.Between(0, colors.length - 1)];
+            
+            // Crear partícula con propiedades físicas
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: vx,
+                vy: vy,
+                life: 1.0, // Vida máxima (se irá reduciendo)
+                lifeSpeed: Phaser.Math.FloatBetween(0.01, 0.03), // Velocidad de degradación
+                size: Phaser.Math.Between(4, 8), // Tamaño inicial
+                color: color
+            });
+        }
+    }
+    
+    // Método para actualizar las partículas existentes
+    updateParticles() {
+        // Limpiar el gráfico antes de redibujar
+        this.trailGraphics.clear();
+        
+        // Actualizar cada partícula
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            
+            // Actualizar posición
+            p.x += p.vx * (1/60); // Asumiendo 60 FPS
+            p.y += p.vy * (1/60);
+            
+            // Reducir vida
+            p.life -= p.lifeSpeed;
+            
+            // Si la vida es menor o igual a 0, eliminar la partícula
+            if (p.life <= 0) {
+                this.particles.splice(i, 1);
+                continue;
+            }
+            
+            // Dibujar la partícula
+            const alpha = p.life; // Transparencia basada en vida
+            const size = p.size * p.life; // Tamaño se reduce con la vida
+            
+            // Establecer estilo de relleno
+            this.trailGraphics.fillStyle(p.color, alpha);
+            
+            // Dibujar la partícula como un círculo
+            this.trailGraphics.fillCircle(p.x, p.y, size);
         }
     }
     
