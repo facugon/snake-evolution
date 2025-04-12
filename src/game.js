@@ -7,11 +7,13 @@ class MainScene extends Phaser.Scene {
         this.food = null;
         this.cursors = null;
         this.speed = 200;
+        this.baseSpeed = 200; // Velocidad base para referencia
         this.moveTime = 0;
         this.snakeBody = [];
         this.direction = 'right';
         this.nextDirection = 'right';
         this.gridSize = 20;
+        this.speedBoostActive = false; // Estado del boost de velocidad
     }
 
     preload() {
@@ -47,16 +49,62 @@ class MainScene extends Phaser.Scene {
         // Configurar controles
         this.cursors = this.input.keyboard.createCursorKeys();
         
+        // Añadir control de pausa con la barra espaciadora
+        this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        
+        // Añadir teclas para el boost de velocidad
+        this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+        this.xKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+        
         // Añadir texto de puntuación (solo una vez)
         this.scoreText = this.add.text(16, 16, 'Score: 0', { 
             fontSize: '32px', 
             fill: '#fff' 
         });
         
+        // Crear texto de pausa (inicialmente invisible)
+        this.pauseText = this.add.text(400, 300, 'PAUSA', {
+            fontSize: '64px',
+            fill: '#fff'
+        });
+        this.pauseText.setOrigin(0.5);
+        this.pauseText.visible = false;
+        
+        // Crear texto para indicador de boost
+        this.boostText = this.add.text(16, 60, 'BOOST: OFF', { 
+            fontSize: '24px', 
+            fill: '#ff0' 
+        });
+        
         this.score = 0;
+        this.isPaused = false;
     }
 
     update(time) {
+        // Comprobar si se ha pulsado la barra espaciadora para pausar/reanudar
+        if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+            this.isPaused = !this.isPaused;
+            this.pauseText.visible = this.isPaused;
+        }
+        
+        // Si el juego está pausado, no actualizar
+        if (this.isPaused) {
+            return;
+        }
+        
+        // Controlar velocidad con SHIFT o X
+        if (this.shiftKey.isDown || this.xKey.isDown) {
+            this.speed = Math.floor(this.baseSpeed / 3); // 3 veces más rápido
+            this.speedBoostActive = true;
+            this.boostText.setText('BOOST: ON');
+            this.boostText.setFill('#ff0'); // Amarillo
+        } else {
+            this.speed = this.baseSpeed;
+            this.speedBoostActive = false;
+            this.boostText.setText('BOOST: OFF');
+            this.boostText.setFill('#888'); // Gris
+        }
+        
         // Manejar entrada
         if (this.cursors.left.isDown && this.direction !== 'right') {
             this.nextDirection = 'left';
@@ -142,7 +190,9 @@ class MainScene extends Phaser.Scene {
             
             // Acelerar el juego
             if (this.speed > 50) {
-                this.speed -= 5;
+                this.baseSpeed -= 5;
+                // Aplicar el boost si está activo
+                this.speed = this.speedBoostActive ? Math.floor(this.baseSpeed / 3) : this.baseSpeed;
             }
         } else {
             // Eliminar la cola si no comió

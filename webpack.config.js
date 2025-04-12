@@ -5,8 +5,10 @@ module.exports = {
     entry: './src/game.js',
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'bundle.js'
+        filename: 'bundle.js',
+        clean: true
     },
+    devtool: 'source-map',
     module: {
         rules: []
     },
@@ -18,9 +20,13 @@ module.exports = {
     ],
     devServer: {
         static: {
-            directory: path.join(__dirname, 'public')
+            directory: path.join(__dirname, 'public'),
+            publicPath: '/'
         },
         port: 8080,
-        hot: true
+        hot: true,
+        devMiddleware: {
+            writeToDisk: false
+        }
     }
 }; 

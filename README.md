@@ -1,23 +1,41 @@
 # Snake Game
 
-A classic Snake game built with Phaser.js.
+A simple Snake game built with Phaser.js
 
-## Setup
+## Project Structure
 
-1. Install dependencies:
+- `src/` - Source code
+  - `game.js` - Main game code
+  - `index.html` - HTML template
+- `public/` - Static assets (images, sounds, etc.)
+- `dist/` - Production build output (generated)
+
+## Development
+
+To run the development server:
+
 ```bash
 npm install
-```
-
-2. Start the development server:
-```bash
 npm start
 ```
 
-3. Open your browser and navigate to:
+The game will be available at http://localhost:8080
+
+## Production Build
+
+To build for production:
+
+```bash
+npm run build
 ```
-http://localhost:8080
-```
+
+This will generate the production files in the `dist/` directory.
+
+## Notes
+
+- The game is built using Phaser 3
+- The webpack configuration handles both development and production builds
+- The source code is in `src/game.js`
 
 ## Game Controls
 
