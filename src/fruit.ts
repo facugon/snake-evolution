@@ -1,5 +1,28 @@
+import { GameScene, Position, Segment, CustomTextStyle, Mole } from './types';
+
 export default class Fruit {
-    constructor(scene) {
+    private scene: GameScene;
+    private gridSize: number;
+    
+    // Fruit properties
+    private position: Position;
+    private maxFoodLifetime: number;
+    private minFoodLifetime: number;
+    private foodMaxDistance: number;
+    private lifetime: number;
+    private expiryTime: number;
+    private distanceToSnake: number;
+    
+    // Initial difficulty settings
+    private initialMaxFoodLifetime: number;
+    private initialMinFoodLifetime: number;
+    private maxFruitsForFullDifficulty: number;
+    
+    // Visual elements
+    private graphics: Phaser.GameObjects.Graphics;
+    private foodText: Phaser.GameObjects.Text;
+    
+    constructor(scene: GameScene) {
         this.scene = scene;
         this.gridSize = scene.gridSize;
         
@@ -10,6 +33,7 @@ export default class Fruit {
         this.foodMaxDistance = 20; // Max distance for calculation (grid units)
         this.lifetime = 0;
         this.expiryTime = 0;
+        this.distanceToSnake = 0;
         
         // Initial difficulty settings
         this.initialMaxFoodLifetime = 10000; // Initial max (10 seconds)
@@ -25,17 +49,17 @@ export default class Fruit {
         this.foodText = scene.add.text(16, 120, 'Food Time: 100%', { 
             fontSize: '24px', 
             fill: '#fff' 
-        });
+        } as CustomTextStyle);
     }
     
-    spawn(snakeBody, moles, fruitsEaten) {
+    spawn(snakeBody: Segment[], moles: Mole[], fruitsEaten: number): void {
         // Find valid position for food
-        let x, y;
+        let x: number, y: number;
         let valid = false;
         
         while (!valid) {
-            const gameWidth = this.scene.game.config.width;
-            const gameHeight = this.scene.game.config.height;
+            const gameWidth = this.scene.game.config.width as number;
+            const gameHeight = this.scene.game.config.height as number;
             const gridWidth = Math.floor(gameWidth / this.gridSize);
             const gridHeight = Math.floor(gameHeight / this.gridSize);
             
@@ -89,7 +113,7 @@ export default class Fruit {
         this.distanceToSnake = distance;
     }
     
-    update(time) {
+    update(time: number): boolean {
         // Update food time text
         const timeRemaining = Math.max(0, (this.expiryTime - time) / this.lifetime * 100);
         this.foodText.setText(`Food Time: ${Math.floor(timeRemaining)}%`);
@@ -101,7 +125,7 @@ export default class Fruit {
         return time >= this.expiryTime;
     }
     
-    draw(time) {
+    draw(time: number): void {
         // Clear previous graphics
         this.graphics.clear();
         
@@ -141,11 +165,11 @@ export default class Fruit {
         this.graphics.strokeCircle(centerX, centerY, currentRadius);
     }
     
-    checkCollision(x, y) {
+    checkCollision(x: number, y: number): boolean {
         return (x === this.position.x && y === this.position.y);
     }
     
-    destroy() {
+    destroy(): void {
         this.graphics.destroy();
         this.foodText.destroy();
     }

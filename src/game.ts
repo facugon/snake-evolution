@@ -1,8 +1,9 @@
 import 'phaser';
-import Snake from './snake.js';
-import Fruit from './fruit.js';
-import Mole from './mole.js';
-import Explosion from './explosion.js';
+import Snake from './snake';
+import Fruit from './fruit';
+import MoleManager from './mole';
+import Explosion from './explosion';
+import { GameScene, CustomTextStyle } from './types';
 
 // Agregar estilos para prevenir scrollbars
 document.body.style.margin = '0';
@@ -10,7 +11,35 @@ document.body.style.padding = '0';
 document.body.style.overflow = 'hidden';
 document.documentElement.style.overflow = 'hidden';
 
-class MainScene extends Phaser.Scene {
+class MainScene extends Phaser.Scene implements GameScene {
+    // Game properties
+    gridSize: number;
+    private moveTime: number;
+    
+    // Game components
+    private snake: Snake;
+    private fruit: Fruit;
+    private mole: MoleManager;
+    private explosion: Explosion;
+    
+    // Input controls
+    private cursors: Phaser.Types.Input.Keyboard.CursorKeys;
+    private spaceKey: Phaser.Input.Keyboard.Key;
+    private shiftKey: Phaser.Input.Keyboard.Key;
+    private xKey: Phaser.Input.Keyboard.Key;
+    
+    // Game state
+    private score: number;
+    private fruitsEaten: number;
+    private isPaused: boolean;
+    private gameEnded: boolean;
+    
+    // UI elements
+    private scoreText: Phaser.GameObjects.Text;
+    private fruitsEatenText: Phaser.GameObjects.Text;
+    private pauseText: Phaser.GameObjects.Text;
+    private gameOverText: Phaser.GameObjects.Text;
+
     constructor() {
         super({ key: 'MainScene' });
         
@@ -37,15 +66,15 @@ class MainScene extends Phaser.Scene {
         this.gameEnded = false;
     }
 
-    preload() {
+    preload(): void {
         // No need to preload anything for basic particles
     }
 
-    create() {
+    create(): void {
         // Initialize game components
         this.snake = new Snake(this);
         this.fruit = new Fruit(this);
-        this.mole = new Mole(this);
+        this.mole = new MoleManager(this);
         this.explosion = new Explosion(this);
         
         // Spawn initial fruit
@@ -61,27 +90,37 @@ class MainScene extends Phaser.Scene {
         this.scoreText = this.add.text(16, 16, 'Score: 0', { 
             fontSize: '32px', 
             fill: '#fff' 
-        });
+        } as CustomTextStyle);
         
         // Add fruits eaten text
         this.fruitsEatenText = this.add.text(16, 150, 'Fruits: 0', { 
             fontSize: '24px', 
             fill: '#fff' 
-        });
+        } as CustomTextStyle);
         
         // Create pause text (initially invisible)
-        this.pauseText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, 'PAUSA', {
-            fontSize: '64px',
-            fill: '#fff'
-        });
+        this.pauseText = this.add.text(
+            this.game.config.width as number / 2, 
+            this.game.config.height as number / 2, 
+            'PAUSA', 
+            {
+                fontSize: '64px',
+                fill: '#fff'
+            } as CustomTextStyle
+        );
         this.pauseText.setOrigin(0.5);
         this.pauseText.visible = false;
         
         // Create game over text (initially invisible)
-        this.gameOverText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, 'GAME OVER', {
-            fontSize: '64px',
-            fill: '#ff0000'
-        });
+        this.gameOverText = this.add.text(
+            this.game.config.width as number / 2, 
+            this.game.config.height as number / 2, 
+            'GAME OVER', 
+            {
+                fontSize: '64px',
+                fill: '#ff0000'
+            } as CustomTextStyle
+        );
         this.gameOverText.setOrigin(0.5);
         this.gameOverText.visible = false;
         
@@ -92,7 +131,7 @@ class MainScene extends Phaser.Scene {
         this.gameEnded = false;
     }
 
-    update(time) {
+    update(time: number): void {
         // Check if space key is pressed to pause/resume
         if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
             this.isPaused = !this.isPaused;
@@ -151,7 +190,7 @@ class MainScene extends Phaser.Scene {
         }
     }
     
-    moveSnake() {
+    moveSnake(): void {
         // Exit if game has ended
         if (this.gameEnded) return;
         
@@ -209,7 +248,7 @@ class MainScene extends Phaser.Scene {
         }
     }
     
-    gameOver() {
+    gameOver(): void {
         this.gameEnded = true;
         this.gameOverText.visible = true;
         
@@ -222,7 +261,7 @@ class MainScene extends Phaser.Scene {
     }
 }
 
-const config = {
+const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     width: window.innerWidth,
     height: window.innerHeight,

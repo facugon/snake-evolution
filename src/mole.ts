@@ -1,5 +1,22 @@
-export default class Mole {
-    constructor(scene) {
+import { GameScene, Position, Segment, Mole, CollisionResult, CustomTextStyle } from './types';
+
+export default class MoleManager {
+    private scene: GameScene;
+    private gridSize: number;
+    
+    // Mole properties
+    moles: Mole[]; // Array to store active moles (public for access in other components)
+    private maxMoles: number;
+    private moleLifetime: number;
+    private nextMoleTime: number;
+    private moleSpawnRate: number;
+    private moleSafeDistance: number;
+    
+    // Visual elements
+    private graphics: Phaser.GameObjects.Graphics;
+    private moleText: Phaser.GameObjects.Text;
+    
+    constructor(scene: GameScene) {
         this.scene = scene;
         this.gridSize = scene.gridSize;
         
@@ -20,10 +37,10 @@ export default class Mole {
         this.moleText = scene.add.text(16, 90, 'Moles: 0/5', {
             fontSize: '24px',
             fill: '#fff'
-        });
+        } as CustomTextStyle);
     }
     
-    update(time, snakeBody) {
+    update(time: number, snakeBody: Segment[]): void {
         // Try to spawn new mole if we don't exceed maximum
         if (time >= this.nextMoleTime && this.moles.length < this.maxMoles) {
             this.spawnMole(snakeBody);
@@ -45,11 +62,11 @@ export default class Mole {
         this.moleText.setText(`Moles: ${this.moles.length}/${this.maxMoles}`);
     }
     
-    spawnMole(snakeBody) {
+    spawnMole(snakeBody: Segment[]): void {
         if (snakeBody.length === 0) return;
         
         const head = snakeBody[0];
-        let x, y;
+        let x: number, y: number;
         let validPosition = false;
         let attempts = 0;
         
@@ -72,8 +89,8 @@ export default class Mole {
             y = Math.floor(y / this.gridSize) * this.gridSize;
             
             // Check if within game bounds
-            const gameWidth = this.scene.game.config.width;
-            const gameHeight = this.scene.game.config.height;
+            const gameWidth = this.scene.game.config.width as number;
+            const gameHeight = this.scene.game.config.height as number;
             if (x < 0 || x >= gameWidth || y < 0 || y >= gameHeight) {
                 continue;
             }
@@ -107,7 +124,7 @@ export default class Mole {
         }
     }
     
-    draw() {
+    draw(): void {
         // Clear previous graphics
         this.graphics.clear();
         
@@ -145,7 +162,7 @@ export default class Mole {
         }
     }
     
-    checkCollision(x, y) {
+    checkCollision(x: number, y: number): CollisionResult {
         for (const mole of this.moles) {
             if (x === mole.position.x && y === mole.position.y) {
                 return { 
@@ -160,7 +177,7 @@ export default class Mole {
         return { collision: false };
     }
     
-    destroy() {
+    destroy(): void {
         this.graphics.destroy();
         this.moleText.destroy();
     }

@@ -1,5 +1,22 @@
+import { GameScene, Segment, Particle, CustomTextStyle } from './types';
+
 export default class Snake {
-    constructor(scene) {
+    private scene: GameScene;
+    private gridSize: number;
+    direction: string;
+    private nextDirection: string;
+    private speedBoostActive: boolean;
+    private baseSpeed: number;
+    speed: number;
+    
+    body: Segment[];
+    private visualBody: Segment[];
+    private graphics: Phaser.GameObjects.Graphics;
+    private trailGraphics: Phaser.GameObjects.Graphics;
+    private particles: Particle[];
+    private boostText: Phaser.GameObjects.Text;
+    
+    constructor(scene: GameScene) {
         this.scene = scene;
         this.gridSize = scene.gridSize;
         this.direction = 'right';
@@ -37,16 +54,16 @@ export default class Snake {
         this.boostText = scene.add.text(16, 60, 'BOOST: OFF', { 
             fontSize: '24px', 
             fill: '#888' 
-        });
+        } as CustomTextStyle);
     }
     
-    update() {
+    update(): void {
         this.updateVisualPositions();
         this.draw();
         this.updateParticles();
     }
     
-    updateVisualPositions() {
+    updateVisualPositions(): void {
         // Smoothly update the visual positions towards the logical positions
         const smoothFactor = 0.4; // Ajustado para mejor equilibrio entre fluidez y precisión
         
@@ -70,7 +87,7 @@ export default class Snake {
         }
     }
     
-    move() {
+    move(): Segment {
         // Calculate new position of the head
         let x = this.body[0].x;
         let y = this.body[0].y;
@@ -89,7 +106,7 @@ export default class Snake {
         return { x, y };
     }
     
-    addSegment(position) {
+    addSegment(position: Segment): void {
         this.body.unshift(position);
         // Add new visual segment at the same position
         this.visualBody.unshift({
@@ -98,13 +115,13 @@ export default class Snake {
         });
     }
     
-    removeTail() {
+    removeTail(): Segment {
         // Remove from both arrays
         this.visualBody.pop();
         return this.body.pop();
     }
     
-    setDirection(direction) {
+    setDirection(direction: string): void {
         // Solo permitir cambios de dirección válidos - evita giros de 180 grados
         if (
             (direction === 'left' && this.direction !== 'right') ||
@@ -116,11 +133,11 @@ export default class Snake {
         }
     }
     
-    applyDirection() {
+    applyDirection(): void {
         this.direction = this.nextDirection;
     }
     
-    checkCollisionWithSelf(x, y) {
+    checkCollisionWithSelf(x: number, y: number): boolean {
         // Verificar usando posiciones lógicas exactas, no visuales
         for (let i = 0; i < this.body.length; i++) {
             if (x === this.body[i].x && y === this.body[i].y) {
@@ -130,13 +147,13 @@ export default class Snake {
         return false;
     }
     
-    checkCollisionWithWalls(x, y) {
-        const gameWidth = this.scene.game.config.width;
-        const gameHeight = this.scene.game.config.height;
+    checkCollisionWithWalls(x: number, y: number): boolean {
+        const gameWidth = this.scene.game.config.width as number;
+        const gameHeight = this.scene.game.config.height as number;
         return (x < 0 || x >= gameWidth || y < 0 || y >= gameHeight);
     }
     
-    setBoost(active) {
+    setBoost(active: boolean): void {
         this.speedBoostActive = active;
         if (active) {
             this.speed = Math.floor(this.baseSpeed / 3); // 3 times faster
@@ -154,7 +171,7 @@ export default class Snake {
         }
     }
     
-    increaseSpeed() {
+    increaseSpeed(): void {
         if (this.baseSpeed > 50) {
             this.baseSpeed -= 5;
             // Apply current boost state
@@ -162,7 +179,7 @@ export default class Snake {
         }
     }
     
-    draw() {
+    draw(): void {
         // Clear previous graphics
         this.graphics.clear();
         
@@ -173,7 +190,7 @@ export default class Snake {
         }
     }
     
-    createTrailParticles() {
+    createTrailParticles(): void {
         if (this.body.length <= 1) return;
         
         const tailSegment = this.body[this.body.length - 1];
@@ -201,7 +218,7 @@ export default class Snake {
         );
     }
     
-    createParticles(x, y, angle) {
+    createParticles(x: number, y: number, angle: number): void {
         // Create 3-6 particles each time
         const count = Phaser.Math.Between(3, 6);
         
@@ -236,7 +253,7 @@ export default class Snake {
         }
     }
     
-    updateParticles() {
+    updateParticles(): void {
         // Clear graphics before redrawing
         this.trailGraphics.clear();
         
@@ -269,11 +286,11 @@ export default class Snake {
         }
     }
     
-    getHead() {
+    getHead(): Segment {
         return this.body[0];
     }
     
-    destroy() {
+    destroy(): void {
         this.graphics.destroy();
         this.trailGraphics.destroy();
         this.boostText.destroy();

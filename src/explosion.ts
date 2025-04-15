@@ -1,5 +1,18 @@
+import { GameScene, Particle } from './types';
+
 export default class Explosion {
-    constructor(scene) {
+    private scene: GameScene;
+    
+    // Explosion properties
+    private particles: Particle[];
+    private duration: number;
+    private active: boolean;
+    private startTime: number;
+    
+    // Visual elements
+    private graphics: Phaser.GameObjects.Graphics;
+    
+    constructor(scene: GameScene) {
         this.scene = scene;
         
         // Explosion properties
@@ -12,7 +25,7 @@ export default class Explosion {
         this.graphics = scene.add.graphics();
     }
     
-    create(x, y) {
+    create(x: number, y: number): void {
         this.active = true;
         this.startTime = this.scene.time.now;
         this.particles = [];
@@ -49,7 +62,7 @@ export default class Explosion {
         }
     }
     
-    update(time) {
+    update(time: number): boolean {
         // Check if explosion has ended
         if (time > this.startTime + this.duration) {
             this.active = false;
@@ -92,11 +105,11 @@ export default class Explosion {
         return false; // Explosion still active
     }
     
-    isActive() {
+    isActive(): boolean {
         return this.active;
     }
     
-    destroy() {
+    destroy(): void {
         this.graphics.destroy();
     }
 } 
