@@ -1,330 +1,239 @@
 import 'phaser';
+import Snake from './snake.js';
+import Fruit from './fruit.js';
+import Mole from './mole.js';
+import Explosion from './explosion.js';
+
+// Agregar estilos para prevenir scrollbars
+document.body.style.margin = '0';
+document.body.style.padding = '0';
+document.body.style.overflow = 'hidden';
+document.documentElement.style.overflow = 'hidden';
 
 class MainScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MainScene' });
-        this.snake = null;
-        this.food = null;
-        this.cursors = null;
-        this.speed = 200;
-        this.baseSpeed = 200; // Velocidad base para referencia
-        this.moveTime = 0;
-        this.snakeBody = [];
-        this.direction = 'right';
-        this.nextDirection = 'right';
+        
+        // Game properties
         this.gridSize = 20;
-        this.speedBoostActive = false; // Estado del boost de velocidad
-        this.trailParticles = null; // Sistema de partículas para la estela
+        this.moveTime = 0;
+        
+        // Game components
+        this.snake = null;
+        this.fruit = null;
+        this.mole = null;
+        this.explosion = null;
+        
+        // Input controls
+        this.cursors = null;
+        this.spaceKey = null;
+        this.shiftKey = null;
+        this.xKey = null;
+        
+        // Game state
+        this.score = 0;
+        this.fruitsEaten = 0;
+        this.isPaused = false;
+        this.gameEnded = false;
     }
 
     preload() {
-        // No es necesario precargar nada para las partículas básicas
+        // No need to preload anything for basic particles
     }
 
     create() {
-        // Crear gráfico para el cuerpo de la serpiente
-        this.snakeBodyGraphics = this.add.graphics({
-            fillStyle: { color: 0x00ff00 } // Verde brillante para la serpiente
-        });
+        // Initialize game components
+        this.snake = new Snake(this);
+        this.fruit = new Fruit(this);
+        this.mole = new Mole(this);
+        this.explosion = new Explosion(this);
         
-        // Crear gráfico para la comida
-        this.foodGraphics = this.add.graphics({
-            fillStyle: { color: 0xff0000 } // Rojo para la comida
-        });
+        // Spawn initial fruit
+        this.fruit.spawn(this.snake.body, this.mole.moles, this.fruitsEaten);
         
-        // Inicializar la serpiente
-        this.snake = { x: 400, y: 300 };
-        this.snakeBody = [
-            { x: 400, y: 300 },
-            { x: 380, y: 300 },
-            { x: 360, y: 300 }
-        ];
-        
-        // Inicializar la comida
-        this.food = { x: 300, y: 300 };
-        
-        // Dibujar serpiente y comida iniciales
-        this.drawSnake();
-        this.drawFood();
-        
-        // Configurar controles
+        // Configure controls
         this.cursors = this.input.keyboard.createCursorKeys();
-        
-        // Añadir control de pausa con la barra espaciadora
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-        
-        // Añadir teclas para el boost de velocidad
         this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
         this.xKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
         
-        // Añadir texto de puntuación (solo una vez)
+        // Add score text
         this.scoreText = this.add.text(16, 16, 'Score: 0', { 
             fontSize: '32px', 
             fill: '#fff' 
         });
         
-        // Crear texto de pausa (inicialmente invisible)
-        this.pauseText = this.add.text(400, 300, 'PAUSA', {
+        // Add fruits eaten text
+        this.fruitsEatenText = this.add.text(16, 150, 'Fruits: 0', { 
+            fontSize: '24px', 
+            fill: '#fff' 
+        });
+        
+        // Create pause text (initially invisible)
+        this.pauseText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, 'PAUSA', {
             fontSize: '64px',
             fill: '#fff'
         });
         this.pauseText.setOrigin(0.5);
         this.pauseText.visible = false;
         
-        // Crear texto para indicador de boost
-        this.boostText = this.add.text(16, 60, 'BOOST: OFF', { 
-            fontSize: '24px', 
-            fill: '#ff0' 
+        // Create game over text (initially invisible)
+        this.gameOverText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, 'GAME OVER', {
+            fontSize: '64px',
+            fill: '#ff0000'
         });
+        this.gameOverText.setOrigin(0.5);
+        this.gameOverText.visible = false;
         
-        // Gráfico para las partículas
-        this.trailGraphics = this.add.graphics();
-        
-        // Arreglo para almacenar las partículas manuales
-        this.particles = [];
-        
+        // Initialize game state
         this.score = 0;
+        this.fruitsEaten = 0;
         this.isPaused = false;
+        this.gameEnded = false;
     }
 
     update(time) {
-        // Comprobar si se ha pulsado la barra espaciadora para pausar/reanudar
+        // Check if space key is pressed to pause/resume
         if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
             this.isPaused = !this.isPaused;
             this.pauseText.visible = this.isPaused;
         }
         
-        // Si el juego está pausado, no actualizar
-        if (this.isPaused) {
+        // If game is paused or ended, only update explosion if active
+        if (this.isPaused || this.gameEnded) {
+            if (this.explosion.isActive()) {
+                const explosionEnded = this.explosion.update(time);
+                if (explosionEnded && this.gameEnded) {
+                    this.scene.restart();
+                }
+            }
             return;
         }
         
-        // Actualizar partículas existentes
-        this.updateParticles();
-        
-        // Controlar velocidad con SHIFT o X
+        // Update snake speed boost based on shift/X key
         if (this.shiftKey.isDown || this.xKey.isDown) {
-            this.speed = Math.floor(this.baseSpeed / 3); // 3 veces más rápido
-            this.speedBoostActive = true;
-            this.boostText.setText('BOOST: ON');
-            this.boostText.setFill('#ff0'); // Amarillo
-            
-            // Crear partículas en la cola si la serpiente se está moviendo
-            if (this.snakeBody.length > 0) {
-                const tailSegment = this.snakeBody[this.snakeBody.length - 1];
-                
-                // Determinar dirección para las partículas
-                let particleAngle = 0;
-                if (this.snakeBody.length > 1) {
-                    const prevSegment = this.snakeBody[this.snakeBody.length - 2];
-                    
-                    // Calcular dirección basada en la diferencia entre segmentos
-                    if (tailSegment.x < prevSegment.x) {
-                        particleAngle = 0; // Emitir hacia la derecha
-                    } else if (tailSegment.x > prevSegment.x) {
-                        particleAngle = 180; // Emitir hacia la izquierda
-                    } else if (tailSegment.y < prevSegment.y) {
-                        particleAngle = 90; // Emitir hacia abajo
-                    } else if (tailSegment.y > prevSegment.y) {
-                        particleAngle = 270; // Emitir hacia arriba
-                    }
-                }
-                
-                // Crear nuevas partículas
-                this.createParticles(
-                    tailSegment.x + this.gridSize / 2,
-                    tailSegment.y + this.gridSize / 2,
-                    particleAngle
-                );
-            }
+            this.snake.setBoost(true);
         } else {
-            this.speed = this.baseSpeed;
-            this.speedBoostActive = false;
-            this.boostText.setText('BOOST: OFF');
-            this.boostText.setFill('#888'); // Gris
+            this.snake.setBoost(false);
         }
         
-        // Manejar entrada
-        if (this.cursors.left.isDown && this.direction !== 'right') {
-            this.nextDirection = 'left';
-        } else if (this.cursors.right.isDown && this.direction !== 'left') {
-            this.nextDirection = 'right';
-        } else if (this.cursors.up.isDown && this.direction !== 'down') {
-            this.nextDirection = 'up';
-        } else if (this.cursors.down.isDown && this.direction !== 'up') {
-            this.nextDirection = 'down';
+        // Handle direction input
+        if (this.cursors.left.isDown && this.snake.direction !== 'right') {
+            this.snake.setDirection('left');
+        } else if (this.cursors.right.isDown && this.snake.direction !== 'left') {
+            this.snake.setDirection('right');
+        } else if (this.cursors.up.isDown && this.snake.direction !== 'down') {
+            this.snake.setDirection('up');
+        } else if (this.cursors.down.isDown && this.snake.direction !== 'up') {
+            this.snake.setDirection('down');
         }
         
-        // Mover la serpiente a intervalos
+        // Update visual components every frame
+        this.snake.update();
+        const fruitExpired = this.fruit.update(time);
+        if (fruitExpired) {
+            this.fruit.spawn(this.snake.body, this.mole.moles, this.fruitsEaten);
+        }
+        
+        this.mole.update(time, this.snake.body);
+        
+        if (this.explosion.isActive()) {
+            const explosionEnded = this.explosion.update(time);
+            if (explosionEnded && this.gameEnded) {
+                this.scene.restart();
+            }
+        }
+        
+        // Move snake at intervals
         if (time >= this.moveTime) {
             this.moveSnake();
-            this.moveTime = time + this.speed;
+            this.moveTime = time + this.snake.speed;
         }
-    }
-    
-    // Método para crear partículas manualmente
-    createParticles(x, y, angle) {
-        // Crear entre 3 y 6 partículas cada vez
-        const count = Phaser.Math.Between(3, 6);
-        
-        for (let i = 0; i < count; i++) {
-            // Calcular ángulo aleatorio dentro del rango
-            const particleAngle = Phaser.Math.DegToRad(
-                angle + Phaser.Math.Between(-30, 30)
-            );
-            
-            // Velocidad aleatoria
-            const speed = Phaser.Math.Between(20, 80);
-            
-            // Componentes de velocidad
-            const vx = Math.cos(particleAngle) * speed;
-            const vy = Math.sin(particleAngle) * speed;
-            
-            // Color aleatorio entre tonos verdosos/azulados
-            const colors = [0x00ff88, 0x00ffaa, 0x00ddff];
-            const color = colors[Phaser.Math.Between(0, colors.length - 1)];
-            
-            // Crear partícula con propiedades físicas
-            this.particles.push({
-                x: x,
-                y: y,
-                vx: vx,
-                vy: vy,
-                life: 1.0, // Vida máxima (se irá reduciendo)
-                lifeSpeed: Phaser.Math.FloatBetween(0.01, 0.03), // Velocidad de degradación
-                size: Phaser.Math.Between(4, 8), // Tamaño inicial
-                color: color
-            });
-        }
-    }
-    
-    // Método para actualizar las partículas existentes
-    updateParticles() {
-        // Limpiar el gráfico antes de redibujar
-        this.trailGraphics.clear();
-        
-        // Actualizar cada partícula
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            const p = this.particles[i];
-            
-            // Actualizar posición
-            p.x += p.vx * (1/60); // Asumiendo 60 FPS
-            p.y += p.vy * (1/60);
-            
-            // Reducir vida
-            p.life -= p.lifeSpeed;
-            
-            // Si la vida es menor o igual a 0, eliminar la partícula
-            if (p.life <= 0) {
-                this.particles.splice(i, 1);
-                continue;
-            }
-            
-            // Dibujar la partícula
-            const alpha = p.life; // Transparencia basada en vida
-            const size = p.size * p.life; // Tamaño se reduce con la vida
-            
-            // Establecer estilo de relleno
-            this.trailGraphics.fillStyle(p.color, alpha);
-            
-            // Dibujar la partícula como un círculo
-            this.trailGraphics.fillCircle(p.x, p.y, size);
-        }
-    }
-    
-    drawSnake() {
-        // Limpiar el gráfico anterior
-        this.snakeBodyGraphics.clear();
-        
-        // Dibujar cada segmento de la serpiente
-        for (let i = 0; i < this.snakeBody.length; i++) {
-            const segment = this.snakeBody[i];
-            this.snakeBodyGraphics.fillRect(segment.x, segment.y, this.gridSize, this.gridSize);
-        }
-    }
-    
-    drawFood() {
-        // Limpiar el gráfico anterior
-        this.foodGraphics.clear();
-        
-        // Dibujar la comida
-        this.foodGraphics.fillRect(this.food.x, this.food.y, this.gridSize, this.gridSize);
     }
     
     moveSnake() {
-        // Actualizar dirección
-        this.direction = this.nextDirection;
+        // Exit if game has ended
+        if (this.gameEnded) return;
         
-        // Calcular nueva posición de la cabeza
-        let x = this.snakeBody[0].x;
-        let y = this.snakeBody[0].y;
+        // Apply next direction
+        this.snake.applyDirection();
         
-        if (this.direction === 'left') {
-            x -= this.gridSize;
-        } else if (this.direction === 'right') {
-            x += this.gridSize;
-        } else if (this.direction === 'up') {
-            y -= this.gridSize;
-        } else if (this.direction === 'down') {
-            y += this.gridSize;
-        }
+        // Calculate new head position
+        const newHead = this.snake.move();
         
-        // Verificar colisión con las paredes
-        if (x < 0 || x >= 800 || y < 0 || y >= 600) {
+        // Check collision with walls
+        if (this.snake.checkCollisionWithWalls(newHead.x, newHead.y)) {
             this.gameOver();
             return;
         }
         
-        // Verificar colisión con el cuerpo
-        for (let i = 0; i < this.snakeBody.length; i++) {
-            if (x === this.snakeBody[i].x && y === this.snakeBody[i].y) {
-                this.gameOver();
-                return;
-            }
+        // Check collision with self
+        if (this.snake.checkCollisionWithSelf(newHead.x, newHead.y)) {
+            this.gameOver();
+            return;
         }
         
-        // Añadir nueva cabeza
-        this.snakeBody.unshift({ x, y });
-        
-        // Verificar colisión con la comida
-        if (x === this.food.x && y === this.food.y) {
-            // Reposicionar comida
-            this.food.x = Math.floor(Math.random() * 40) * this.gridSize;
-            this.food.y = Math.floor(Math.random() * 30) * this.gridSize;
-            this.drawFood();
+        // Check collision with moles
+        const moleCollision = this.mole.checkCollision(newHead.x, newHead.y);
+        if (moleCollision.collision) {
+            // Add new head to visualize collision
+            this.snake.addSegment(newHead);
             
-            // Aumentar puntuación
+            // Create explosion at collision point
+            this.explosion.create(moleCollision.position.x, moleCollision.position.y);
+            this.gameOver();
+            return;
+        }
+        
+        // Add new head
+        this.snake.addSegment(newHead);
+        
+        // Check collision with fruit
+        if (this.fruit.checkCollision(newHead.x, newHead.y)) {
+            // Increment fruit counter
+            this.fruitsEaten += 1;
+            this.fruitsEatenText.setText('Fruits: ' + this.fruitsEaten);
+            
+            // Spawn new fruit
+            this.fruit.spawn(this.snake.body, this.mole.moles, this.fruitsEaten);
+            
+            // Increase score
             this.score += 10;
             this.scoreText.setText('Score: ' + this.score);
             
-            // Acelerar el juego
-            if (this.speed > 50) {
-                this.baseSpeed -= 5;
-                // Aplicar el boost si está activo
-                this.speed = this.speedBoostActive ? Math.floor(this.baseSpeed / 3) : this.baseSpeed;
-            }
+            // Increase snake speed
+            this.snake.increaseSpeed();
         } else {
-            // Eliminar la cola si no comió
-            this.snakeBody.pop();
+            // Remove tail if no fruit eaten
+            this.snake.removeTail();
         }
-        
-        // Redibujar la serpiente
-        this.drawSnake();
     }
     
     gameOver() {
-        // Reiniciar el juego
-        this.scene.restart();
+        this.gameEnded = true;
+        this.gameOverText.visible = true;
+        
+        // If no explosion, restart after a short delay
+        if (!this.explosion.isActive()) {
+            this.time.delayedCall(1500, () => {
+                this.scene.restart();
+            });
+        }
     }
 }
 
 const config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
+    width: window.innerWidth,
+    height: window.innerHeight,
     parent: 'game',
     backgroundColor: '#1a1a1a',
     scene: MainScene
 };
 
-const game = new Phaser.Game(config); 
+const game = new Phaser.Game(config);
+
+// Añadir evento para manejar cambios de tamaño de ventana
+window.addEventListener('resize', () => {
+    game.scale.resize(window.innerWidth, window.innerHeight);
+}); 
