@@ -295,4 +295,4 @@ export default class Snake {
         this.trailGraphics.destroy();
         this.boostText.destroy();
     }
-} 
+}
